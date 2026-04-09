@@ -1,0 +1,227 @@
+# Конфигурация серверов для E2E-тестирования MCP-серверов
+# Этот файл используется оркестратором (WORKFLOW.md) для параметризации тестов.
+#
+# Скопируйте servers_example.yaml в этот файл и отредактируйте под свои серверы:
+#   cp servers_example.yaml servers.yaml
+#
+# Описание полей — см. servers_example.yaml
+
+# configuration:
+#   name: "Ваша конфигурация 1С"
+#   description: "Описание"
+#   source_format: xml
+
+# infrastructure:
+#   lm_studio:
+#     url: "http://localhost:1234/v1/models"
+#     model: "bge-m3"
+#   neo4j:
+#     url: "http://localhost:7474"
+
+# servers:
+#   - name: my-mcp-server
+#     display_name: "My MCP Server"
+#     short_name: my-server
+#     report_dir: my-server
+#     description: "Описание сервера"
+#     url: "https://github.com/..."
+#     license: free
+#     type: rag
+#     mcp_prefix: "mcp__my-mcp-server__"
+#     health_check:
+#       method: http
+#       url: "http://localhost:9000/health"
+#     tools:
+#       - tool_name_1
+#       - tool_name_2
+#     requires: []
+
+# Тестируемая конфигурация 1С
+configuration:
+  name: "1С:Документооборот КОРП 3.0 (DO3)"
+  description: "Средняя по размеру конфигурация делопроизводства"
+  source_format: xml  # xml | edt | cf
+
+# Инфраструктурные зависимости (проверяются в Шаге 0)
+infrastructure:
+  lm_studio:
+    url: "http://localhost:1234/v1/models"
+    model: "bge-m3"
+    description: "Локальный сервер эмбеддингов (нужен для RAG-серверов)"
+  neo4j:
+    url: "http://localhost:7474"
+    description: "Графовая БД (нужна для graph-серверов)"
+
+# Серверы для тестирования
+# Поля:
+#   name          — имя MCP-сервера в Claude Code (mcp__<name>__)
+#   display_name  — название для отчётов и таблиц
+#   short_name    — краткое имя для файлов логов (test01_<short_name>_log.md)
+#   report_dir    — каталог в business_reports/ для бизнес-отчётов и оценок
+#   description   — краткое описание сервера (1 предложение)
+#   url           — ссылка на проект/документацию
+#   license       — free | paid
+#   vendor        — автор (для платных серверов)
+#   type          — rag | rlm | graph
+#   port          — порт HTTP-сервера (если применимо)
+#   mcp_prefix    — префикс инструментов в Claude Code
+#   health_check  — как проверить доступность
+#     method: http     — curl -s <url>
+#     method: mcp_call — вызвать MCP-инструмент <tool> с аргументами <args>
+#   tools         — список доступных инструментов
+#   requires      — зависимости из секции infrastructure
+
+servers:
+  - name: 1c-metacode-test-do3
+    display_name: "1c-mcp-metacode"
+    short_name: 1c-metacode-test-do3
+    report_dir: 1c-metacode
+    description: "Neo4j-граф с загрузкой метаданных конфигурации, семантическим поиском и поиском по коду"
+    url: "https://github.com/ROCTUP/1c-mcp-metacode"
+    license: free
+    type: graph
+    mcp_prefix: "mcp__1c-metacode-test-do3__"
+    health_check:
+      method: mcp_call
+      tool: search_metadata
+      args:
+        query: "test"
+    tools:
+      - search_code
+      - search_metadata
+      - search_metadata_by_description
+    requires:
+      - neo4j
+
+  - name: 1c-cloud-embeddings
+    display_name: "cloud-embeddings-server"
+    short_name: cloud-embeddings
+    report_dir: cloud-embeddings
+    description: "RAG-сервер с семантическим поиском по метаданным и коду через облачные/локальные эмбеддинги"
+    url: "https://docs.onerpa.ru/mcp-servery-1c/servery/cloud-embeddings-server"
+    license: paid
+    vendor: "Comol (Олег Филиппов)"
+    type: rag
+    port: 8000
+    mcp_prefix: "mcp__1c-cloud-embeddings__"
+    health_check:
+      method: http
+      url: "http://localhost:8000/health"
+    tools:
+      - metadatasearch
+      - codesearch
+      - helpsearch
+      - reindex
+      - stats
+    requires:
+      - docker
+      - lm-studio
+
+  - name: 1c-graph-metadata
+    display_name: "graph-metadata-search"
+    short_name: graph-metadata
+    report_dir: graph-metadata
+    description: "Анализ связей и зависимостей метаданных конфигурации через Neo4j-граф с Cypher-запросами"
+    url: "https://docs.onerpa.ru/mcp-servery-1c/servery/graph-metadata-search"
+    license: paid
+    vendor: "Comol (Олег Филиппов)"
+    type: graph
+    port: 8006
+    mcp_prefix: "mcp__1c-graph-metadata__"
+    health_check:
+      method: http
+      url: "http://localhost:8006/health"
+    tools:
+      - search_metadata
+      - get_metadata_prompt
+      - execute_metadata_cypher
+      - answer_metadata_question
+      - business_search
+      - search_code
+    requires:
+      - docker
+      - neo4j
+
+  - name: 1c-code-metadata
+    display_name: "code-metadata-search"
+    short_name: code-metadata
+    report_dir: code-metadata
+    description: "Семантический поиск по метаданным, коду модулей и документации конфигурации с векторными эмбеддингами"
+    url: "https://docs.onerpa.ru/mcp-servery-1c/servery/code-metadata-search"
+    license: paid
+    vendor: "Comol (Олег Филиппов)"
+    type: rag
+    port: 8001
+    mcp_prefix: "mcp__1c-code-metadata__"
+    health_check:
+      method: http
+      url: "http://localhost:8001/health"
+    tools:
+      - metadatasearch
+      - codesearch
+      - helpsearch
+    requires:
+      - docker
+      - lm-studio
+
+  # Обновлённый образ code-metadata-search от 08.04.2026
+  # 16 инструментов: добавлены get_metadata_details, graph_dependencies,
+  # search_function, get_module_structure, get_method_call_hierarchy,
+  # search_metadata_forms, get_metadata_form_details, bsl_scope_members,
+  # search_metadata_xml, get_xsd_schema, verify_xml
+  - name: 1c-code-metadata
+    display_name: "code-metadata-search (08.04.2026)"
+    short_name: code-metadata_08.04.26
+    report_dir: code-metadata_08.04.26
+    description: "Обновлённая версия code-metadata-search с 16 инструментами: структура объектов, граф зависимостей, иерархия вызовов, анализ форм, XSD-валидация"
+    url: "https://docs.onerpa.ru/mcp-servery-1c/servery/code-metadata-search"
+    license: paid
+    vendor: "Comol (Олег Филиппов)"
+    type: rag
+    port: 8001
+    mcp_prefix: "mcp__1c-code-metadata__"
+    health_check:
+      method: http
+      url: "http://localhost:8001/health"
+    tools:
+      - metadatasearch
+      - get_metadata_details
+      - codesearch
+      - search_function
+      - get_module_structure
+      - get_method_call_hierarchy
+      - search_metadata_forms
+      - get_metadata_form_details
+      - graph_dependencies
+      - bsl_scope_members
+      - helpsearch
+      - search_metadata_xml
+      - get_xsd_schema
+      - verify_xml
+      - reindex
+      - stats
+    requires:
+      - docker
+      - lm-studio
+
+  - name: rlm-tools-bsl
+    display_name: "rlm-tools-bsl"
+    short_name: rlm-tools-bsl
+    report_dir: rlm-tools-bsl
+    description: "Серверный анализ BSL-кода с 51 встроенной функцией, минимальным расходом токенов; индексирование опционально (~4 мин на ДО3)"
+    url: "https://github.com/Dach-Coin/rlm-tools-bsl"
+    license: free
+    type: rlm
+    mcp_prefix: "mcp__rlm-tools-bsl__"
+    health_check:
+      method: mcp_call
+      tool: rlm_projects
+      args:
+        action: "list"
+    tools:
+      - rlm_projects
+      - rlm_index
+      - rlm_start
+      - rlm_execute
+      - rlm_end
+    requires: []
