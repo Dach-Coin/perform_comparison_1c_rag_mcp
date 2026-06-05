@@ -104,6 +104,7 @@ curl -s http://localhost:7474
 | --------------- | --------------------------- | ---------------------------------------------------- |
 | 1c-mcp-metacode | Docker + Neo4j              | [GitHub](https://github.com/ROCTUP/1c-mcp-metacode)  |
 | rlm-tools-bsl   | `pip install rlm-tools-bsl` | [GitHub](https://github.com/Dach-Coin/rlm-tools-bsl) |
+| bsl-indexer (code-index-mcp) | сборка из исходников (Rust) | [GitHub](https://github.com/Regsorm/code-index-mcp) |
 
 ### Конфигурация серверов
 
@@ -172,6 +173,19 @@ curl -s http://localhost:7474
 
 Полный отчёт с детальными таблицами: **[e2e_tests/COMPARISON_REPORT.md](e2e_tests/COMPARISON_REPORT.md)**
 
+### Новый раунд (2) (июнь 2026): rlm-tools-bsl v1.17.0 vs bsl-indexer v0.15.0
+
+Прямое сравнение двух **код-ориентированных** серверов (прямой доступ к коду/индексу, без векторных эмбеддингов и графа) на конфигурации ДО3: 10 бизнес-вопросов × 2 сервера.
+
+| Сервер                    | Качество (из 10)     | Avg токенов | Язык   | Охват                          |
+| ------------------------- | :------------------: | :---------: | :----: | ------------------------------ |
+| **rlm-tools-bsl** v1.17.0 | **10/10**            | **~160K**   | Python | 1С/BSL (специализация)         |
+| **bsl-indexer** v0.15.0   | 9/10 (+1 частично)   | ~288K       | Rust   | универсальный (10 языков) + 1С |
+
+**Итог:** rlm-tools-bsl экономнее по токенам в 9 из 10 тестов (~1.8×) и точнее в спорных точках; bsl-indexer глубже залезает в прикладной код и быстрее на простых задачах. Серверы идейно близки (оба — прямой доступ к коду, без эмбеддингов), но различаются по реализации (Python vs Rust) и охвату (1С-специализация vs универсальный индексатор). Идейное сходство, различия и подробные таблицы — в отчёте.
+
+Полный отчёт раунда 2: **[e2e_tests/COMPARISON_REPORT_2026-06_rlm-vs-bsl-indexer.md](e2e_tests/COMPARISON_REPORT_2026-06_rlm-vs-bsl-indexer.md)**
+
 ---
 
 ## Структура репозитория
@@ -183,17 +197,20 @@ curl -s http://localhost:7474
 ├── e2e_tests/
 │   ├── WORKFLOW.md                        ← протокол оркестрации (параметризованный)
 │   ├── E2E_TEST_PROMPTS.md                ← 10 тестовых промптов
-│   ├── COMPARISON_REPORT.md               ← детальное сравнение серверов
+│   ├── COMPARISON_REPORT.md               ← детальное сравнение серверов (раунд 1, апрель)
+│   ├── COMPARISON_REPORT_2026-06_rlm-vs-bsl-indexer.md  ← раунд 2: rlm-tools-bsl vs bsl-indexer
 │   ├── servers_example.yaml               ← пример конфигурации серверов
 │   ├── servers.yaml                       ← ваша конфигурация (создаётся из примера, в .gitignore)
 │   ├── agent_logs/                        ← логи агентов (примеры)
 │   ├── business_reports/                  ← бизнес-отчёты + оценки качества (примеры)
 │   │   ├── 1c-metacode/
+│   │   ├── bsl-indexer_v0.15/          ← раунд 2
 │   │   ├── cloud-embeddings/
 │   │   ├── code-metadata/
 │   │   ├── code-metadata_08.04.26/
 │   │   ├── graph-metadata/
-│   │   └── rlm-tools-bsl/
+│   │   ├── rlm-tools-bsl/
+│   │   └── rlm-tools-bsl_v1.17.0/      ← раунд 2
 │   └── tmp/                               ← временные файлы (.gitignore)
 ```
 
